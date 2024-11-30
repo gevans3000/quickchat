@@ -1,0 +1,146 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat with GPT-4</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .chat-box { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; height: 300px; overflow-y: scroll; }
+        .user { color: blue; }
+        .bot { color: green; }
+        .message { margin-bottom: 10px; }
+        .parameters { margin-top: 20px; }
+        label { display: block; margin-top: 10px; }
+        input[type="text"], textarea { width: 100%; padding: 5px; }
+        input[type="number"] { width: 100px; }
+        input[type="range"] { width: 100%; }
+        button { padding: 10px 15px; margin-top: 10px; }
+        .buttons { margin-top: 20px; }
+        output { display: inline-block; width: 50px; text-align: right; }
+    </style>
+</head>
+<body>
+    <h1>Chat with GPT-4</h1>
+    <div class="chat-box" id="chat-box">
+        <div class="message">Start a conversation below.</div>
+    </div>
+    <form id="chat-form">
+        <label for="user_input">Your Message:</label>
+        <textarea name="user_input" id="user_input" rows="4" required></textarea>
+
+        <div class="parameters">
+            <h2>Model Parameters</h2>
+
+            <label for="model">Model:</label>
+            <input type="text" name="model" id="model" value="gpt-4">
+
+            <label for="temperature">Temperature:</label>
+            <input type="range" name="temperature" id="temperature" min="0" max="2" step="0.01" value="0.7" oninput="temperatureOutput.value = temperature.value">
+            <output id="temperatureOutput">0.7</output>
+
+            <label for="top_p">Top P:</label>
+            <input type="range" name="top_p" id="top_p" min="0" max="1" step="0.01" value="1.0" oninput="topPOutput.value = top_p.value">
+            <output id="topPOutput">1.0</output>
+
+            <label for="max_tokens">Max Tokens:</label>
+            <input type="number" name="max_tokens" id="max_tokens" min="1" max="4000" value="150">
+
+            <label for="presence_penalty">Presence Penalty:</label>
+            <input type="range" name="presence_penalty" id="presence_penalty" min="-2" max="2" step="0.01" value="0.0" oninput="presencePenaltyOutput.value = presence_penalty.value">
+            <output id="presencePenaltyOutput">0.0</output>
+
+            <label for="frequency_penalty">Frequency Penalty:</label>
+            <input type="range" name="frequency_penalty" id="frequency_penalty" min="-2" max="2" step="0.01" value="0.0" oninput="frequencyPenaltyOutput.value = frequency_penalty.value">
+            <output id="frequencyPenaltyOutput">0.0</output>
+
+            <label for="logit_bias">Logit Bias (JSON format):</label>
+            <input type="text" name="logit_bias" id="logit_bias" placeholder='e.g., {"50256": -100}'>
+
+            <label for="user">User ID:</label>
+            <input type="text" name="user" id="user" placeholder='Optional'>
+        </div>
+
+        <div class="buttons">
+            <button type="submit">Send</button>
+            <button type="reset" id="reset-button">Reset to Defaults</button>
+        </div>
+    </form>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const chatBox = document.getElementById('chat-box');
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const userInput = document.getElementById('user_input').value;
+            const model = document.getElementById('model').value;
+            const temperature = document.getElementById('temperature').value;
+            const top_p = document.getElementById('top_p').value;
+            const max_tokens = document.getElementById('max_tokens').value;
+            const presence_penalty = document.getElementById('presence_penalty').value;
+            const frequency_penalty = document.getElementById('frequency_penalty').value;
+            const logit_bias = document.getElementById('logit_bias').value;
+            const user = document.getElementById('user').value;
+
+            const payload = {
+                user_input: userInput,
+                model,
+                temperature: parseFloat(temperature),
+                top_p: parseFloat(top_p),
+                max_tokens: parseInt(max_tokens),
+                presence_penalty: parseFloat(presence_penalty),
+                frequency_penalty: parseFloat(frequency_penalty),
+                logit_bias: logit_bias ? logit_bias : null,
+                user: user ? user : null
+            };
+
+            // Display user message
+            const userMessage = document.createElement('div');
+            userMessage.className = 'message user';
+            userMessage.innerHTML = `<strong>You:</strong> ${userInput}`;
+            chatBox.appendChild(userMessage);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Clear input
+            document.getElementById('user_input').value = '';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const botMessage = document.createElement('div');
+                    botMessage.className = 'message bot';
+                    botMessage.innerHTML = `<strong>Bot:</strong> ${data.bot_response}`;
+                    chatBox.appendChild(botMessage);
+                } else {
+                    const errorMessage = document.createElement('div');
+                    errorMessage.className = 'message bot';
+                    errorMessage.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                    chatBox.appendChild(errorMessage);
+                }
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'message bot';
+                errorMessage.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                chatBox.appendChild(errorMessage);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        });
+
+        // Reset form and chat box
+        document.getElementById('reset-button').addEventListener('click', () => {
+            chatBox.innerHTML = '<div class="message">Start a conversation below.</div>';
+        });
+    </script>
+</body>
+</html>

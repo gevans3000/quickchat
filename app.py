@@ -1,16 +1,23 @@
+# app.py
 import os
+import json
 from flask import Flask, render_template, request, redirect, url_for
 import openai
 from dotenv import load_dotenv
-import json
 
 # Load environment variables from .env file
 load_dotenv()
-openai.api_key = os.getenv('OPENAI_API_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY is not set in the environment variables.")
+
+openai.api_key = OPENAI_API_KEY
+openai.api_base = os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
 
 # Default model and parameters
 DEFAULT_PARAMS = {
-    'model': 'gpt-4o-mini',
+    'model': 'gpt-4',  # Ensure this is a valid model name
     'temperature': 0.7,
     'top_p': 1.0,
     'max_tokens': 150,
@@ -19,9 +26,6 @@ DEFAULT_PARAMS = {
     'logit_bias': None,
     'user': None
 }
-
-# Place to change API URL if needed
-openai.api_base = os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
 
 app = Flask(__name__)
 
@@ -35,7 +39,7 @@ def chat():
         if 'reset' in request.form:
             return redirect(url_for('chat'))
 
-        user_input = request.form['user_input']
+        user_input = request.form.get('user_input', '').strip()
         params.update({
             'model': request.form.get('model', params['model']),
             'temperature': float(request.form.get('temperature', params['temperature'])),
@@ -71,7 +75,7 @@ def chat():
                 logit_bias=params['logit_bias'],
                 user=params['user']
             )
-            bot_response = response['choices'][0]['message']['content']
+            bot_response = response['choices'][0]['message']['content'].strip()
         except Exception as e:
             bot_response = f"Error: {str(e)}"
 
