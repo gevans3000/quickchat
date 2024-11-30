@@ -2,32 +2,41 @@
 import os
 import json
 from flask import Flask, render_template, request, redirect, url_for
-import openai
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
 
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY is not set in the environment variables.")
-
-openai.api_key = OPENAI_API_KEY
-openai.api_base = os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
+if not HUGGINGFACE_API_KEY:
+    raise ValueError("HUGGINGFACE_API_KEY is not set in the environment variables.")
 
 # Default model and parameters
 DEFAULT_PARAMS = {
-    'model': 'gpt-4',  # Ensure this is a valid model name
+    'model': 'microsoft/DialoGPT-medium',  # Default model
     'temperature': 0.7,
-    'top_p': 1.0,
-    'max_tokens': 150,
-    'presence_penalty': 0.0,
-    'frequency_penalty': 0.0,
-    'logit_bias': None,
-    'user': None
+    'top_p': 0.9,
+    'max_length': 150,
+    'repetition_penalty': 1.0,
+    'top_k': 50,
+    'do_sample': True
 }
 
 app = Flask(__name__)
+
+# Cache for models and tokenizers
+model_cache = {}
+tokenizer_cache = {}
+
+def get_model_and_tokenizer(model_name):
+    if model_name not in model_cache:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=HUGGINGFACE_API_KEY)
+        model = AutoModelForCausalLM.from_pretrained(model_name, use_auth_token=HUGGINGFACE_API_KEY)
+        model_cache[model_name] = model
+        tokenizer_cache[model_name] = tokenizer
+    return model_cache[model_name], tokenizer_cache[model_name]
 
 @app.route('/', methods=['GET', 'POST'])
 def chat():
@@ -44,38 +53,38 @@ def chat():
             'model': request.form.get('model', params['model']),
             'temperature': float(request.form.get('temperature', params['temperature'])),
             'top_p': float(request.form.get('top_p', params['top_p'])),
-            'max_tokens': int(request.form.get('max_tokens', params['max_tokens'])),
-            'presence_penalty': float(request.form.get('presence_penalty', params['presence_penalty'])),
-            'frequency_penalty': float(request.form.get('frequency_penalty', params['frequency_penalty'])),
-            'logit_bias': request.form.get('logit_bias') or None,
-            'user': request.form.get('user') or None
+            'max_length': int(request.form.get('max_length', params['max_length'])),
+            'repetition_penalty': float(request.form.get('repetition_penalty', params['repetition_penalty'])),
+            'top_k': int(request.form.get('top_k', params['top_k'])),
+            'do_sample': request.form.get('do_sample', 'true').lower() == 'true'
         })
 
-        # Parse logit_bias if provided
-        if params['logit_bias']:
-            try:
-                params['logit_bias'] = json.loads(params['logit_bias'])
-            except json.JSONDecodeError:
-                bot_response = "Error: logit_bias must be a valid JSON object."
-                return render_template('chat.html', bot_response=bot_response, user_input=user_input, **params)
-
-        # Prepare messages
-        messages = [{"role": "user", "content": user_input}]
-
-        # Call OpenAI API using the correct method
         try:
-            response = openai.ChatCompletion.create(
-                model=params['model'],
-                messages=messages,
-                temperature=params['temperature'],
-                top_p=params['top_p'],
-                max_tokens=params['max_tokens'],
-                presence_penalty=params['presence_penalty'],
-                frequency_penalty=params['frequency_penalty'],
-                logit_bias=params['logit_bias'],
-                user=params['user']
-            )
-            bot_response = response['choices'][0]['message']['content'].strip()
+            # Get model and tokenizer
+            model, tokenizer = get_model_and_tokenizer(params['model'])
+
+            # Encode the input
+            input_ids = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors='pt')
+
+            # Generate response
+            with torch.no_grad():
+                output = model.generate(
+                    input_ids,
+                    max_length=params['max_length'],
+                    temperature=params['temperature'],
+                    top_p=params['top_p'],
+                    top_k=params['top_k'],
+                    repetition_penalty=params['repetition_penalty'],
+                    do_sample=params['do_sample'],
+                    pad_token_id=tokenizer.eos_token_id
+                )
+
+            # Decode the response
+            bot_response = tokenizer.decode(output[0], skip_special_tokens=True)
+            
+            # Remove the input text from the response
+            bot_response = bot_response[len(user_input):].strip()
+
         except Exception as e:
             bot_response = f"Error: {str(e)}"
 

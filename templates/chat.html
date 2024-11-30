@@ -2,73 +2,162 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chat Huggingface</title>
+    <title>Hugging Face Chat</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .chat-box { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; height: 300px; overflow-y: scroll; }
-        .user { color: blue; }
-        .bot { color: green; }
-        .message { margin-bottom: 10px; }
-        .parameters { margin-top: 20px; }
-        label { display: block; margin-top: 10px; }
-        input[type="text"], textarea { width: 100%; padding: 5px; }
-        input[type="number"] { width: 100px; }
-        input[type="range"] { width: 100%; }
-        button { padding: 10px 15px; margin-top: 10px; }
-        .buttons { margin-top: 20px; }
-        output { display: inline-block; width: 50px; text-align: right; }
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .chat-box { 
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 20px;
+            height: 400px;
+            overflow-y: scroll;
+            background: #fff;
+            border-radius: 5px;
+        }
+        .user { 
+            color: #2196F3;
+            margin: 10px 0;
+            padding: 10px;
+            background: #E3F2FD;
+            border-radius: 5px;
+        }
+        .bot { 
+            color: #4CAF50;
+            margin: 10px 0;
+            padding: 10px;
+            background: #F1F8E9;
+            border-radius: 5px;
+        }
+        .parameters { 
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        label { 
+            display: block;
+            margin-top: 15px;
+            color: #333;
+            font-weight: 500;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        input[type="number"] {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+        }
+        .buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        button[type="submit"] {
+            background: #2196F3;
+            color: white;
+        }
+        button[name="reset"] {
+            background: #f44336;
+            color: white;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        output {
+            display: inline-block;
+            width: 50px;
+            text-align: right;
+            color: #666;
+        }
     </style>
 </head>
 <body>
-    <h1>Chat with GPT-4</h1>
-    <div class="chat-box" id="chat-box">
-        {% if bot_response %}
-            <div class="message user"><strong>You:</strong> {{ user_input }}</div>
-            <div class="message bot"><strong>Bot:</strong> {{ bot_response }}</div>
-        {% else %}
-            <div class="message">Start a conversation below.</div>
-        {% endif %}
+    <div class="container">
+        <h1>Hugging Face Chat</h1>
+        <div class="chat-box" id="chat-box">
+            {% if bot_response %}
+                <div class="message user"><strong>You:</strong> {{ user_input }}</div>
+                <div class="message bot"><strong>Bot:</strong> {{ bot_response }}</div>
+            {% else %}
+                <div class="message">Start a conversation below.</div>
+            {% endif %}
+        </div>
+        <form method="post">
+            <label for="user_input">Your Message:</label>
+            <textarea name="user_input" id="user_input" rows="4" required>{{ user_input }}</textarea>
+
+            <div class="parameters">
+                <h2>Model Parameters</h2>
+
+                <label for="model">Model Name:</label>
+                <input type="text" name="model" id="model" value="{{ model }}" placeholder="e.g., microsoft/DialoGPT-medium">
+
+                <label for="temperature">Temperature: <output id="temperatureOutput">{{ temperature }}</output></label>
+                <input type="range" name="temperature" id="temperature" min="0" max="2" step="0.1" value="{{ temperature }}" oninput="temperatureOutput.value = temperature.value">
+
+                <label for="top_p">Top P: <output id="topPOutput">{{ top_p }}</output></label>
+                <input type="range" name="top_p" id="top_p" min="0" max="1" step="0.1" value="{{ top_p }}" oninput="topPOutput.value = top_p.value">
+
+                <label for="max_length">Max Length:</label>
+                <input type="number" name="max_length" id="max_length" min="1" max="1000" value="{{ max_length }}">
+
+                <label for="repetition_penalty">Repetition Penalty: <output id="repetitionPenaltyOutput">{{ repetition_penalty }}</output></label>
+                <input type="range" name="repetition_penalty" id="repetition_penalty" min="1.0" max="2.0" step="0.1" value="{{ repetition_penalty }}" oninput="repetitionPenaltyOutput.value = repetition_penalty.value">
+
+                <label for="top_k">Top K:</label>
+                <input type="number" name="top_k" id="top_k" min="1" max="100" value="{{ top_k }}">
+
+                <label for="do_sample">Sampling:</label>
+                <select name="do_sample" id="do_sample">
+                    <option value="true" {% if do_sample %}selected{% endif %}>Enabled</option>
+                    <option value="false" {% if not do_sample %}selected{% endif %}>Disabled</option>
+                </select>
+            </div>
+
+            <div class="buttons">
+                <button type="submit">Send</button>
+                <button type="submit" name="reset" value="reset">Reset to Defaults</button>
+            </div>
+        </form>
     </div>
-    <form method="post">
-        <label for="user_input">Your Message:</label>
-        <textarea name="user_input" id="user_input" rows="4" required>{{ user_input }}</textarea>
-
-        <div class="parameters">
-            <h2>Model Parameters</h2>
-
-            <label for="model">Model:</label>
-            <input type="text" name="model" id="model" value="{{ model }}">
-
-            <label for="temperature">Temperature:</label>
-            <input type="range" name="temperature" id="temperature" min="0" max="2" step="0.01" value="{{ temperature }}" oninput="temperatureOutput.value = temperature.value">
-            <output id="temperatureOutput">{{ temperature }}</output>
-
-            <label for="top_p">Top P:</label>
-            <input type="range" name="top_p" id="top_p" min="0" max="1" step="0.01" value="{{ top_p }}" oninput="topPOutput.value = top_p.value">
-            <output id="topPOutput">{{ top_p }}</output>
-
-            <label for="max_tokens">Max Tokens:</label>
-            <input type="number" name="max_tokens" id="max_tokens" min="1" max="4000" value="{{ max_tokens }}">
-
-            <label for="presence_penalty">Presence Penalty:</label>
-            <input type="range" name="presence_penalty" id="presence_penalty" min="-2" max="2" step="0.01" value="{{ presence_penalty }}" oninput="presencePenaltyOutput.value = presence_penalty.value">
-            <output id="presencePenaltyOutput">{{ presence_penalty }}</output>
-
-            <label for="frequency_penalty">Frequency Penalty:</label>
-            <input type="range" name="frequency_penalty" id="frequency_penalty" min="-2" max="2" step="0.01" value="{{ frequency_penalty }}" oninput="frequencyPenaltyOutput.value = frequency_penalty.value">
-            <output id="frequencyPenaltyOutput">{{ frequency_penalty }}</output>
-
-            <label for="logit_bias">Logit Bias (JSON format):</label>
-            <input type="text" name="logit_bias" id="logit_bias" placeholder='e.g., {"50256": -100}' value="{{ logit_bias or '' }}">
-
-            <label for="user">User ID:</label>
-            <input type="text" name="user" id="user" placeholder='Optional' value="{{ user or '' }}">
-        </div>
-
-        <div class="buttons">
-            <button type="submit">Send</button>
-            <button type="submit" name="reset" value="reset">Reset to Defaults</button>
-        </div>
-    </form>
 </body>
 </html>
